@@ -41,6 +41,8 @@ import com.ibm.mapper.model.algorithms.RC2;
 import com.ibm.mapper.model.algorithms.RSA;
 import com.ibm.mapper.model.functionality.Decrypt;
 import com.ibm.mapper.model.functionality.Encrypt;
+import com.ibm.mapper.model.functionality.Generate;
+import com.ibm.mapper.model.functionality.KeyGeneration;
 import com.ibm.mapper.utils.DetectionLocation;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -72,6 +74,8 @@ public final class CSharpCipherContextTranslator
                         case "RC2" -> Optional.of(new RC2(detectionLocation));
                         case "ENCRYPT" -> Optional.of(new Encrypt(detectionLocation));
                         case "DECRYPT" -> Optional.of(new Decrypt(detectionLocation));
+                        case "GENERATEKEY" -> Optional.of(new KeyGeneration(detectionLocation));
+                        case "GENERATEIV" -> Optional.of(new Generate(detectionLocation));
                         default -> Optional.empty();
                     };
             if (result.isPresent()) {

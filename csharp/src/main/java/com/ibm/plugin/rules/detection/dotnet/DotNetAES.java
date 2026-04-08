@@ -487,13 +487,41 @@ public final class DotNetAES {
                     .withoutDependingDetectionRules();
 
     // =========================================================================
+    // Key / IV generation rules
+    // =========================================================================
+
+    // aes.GenerateKey() — generates a new random key (size determined by KeySize property)
+    private static final IDetectionRule<CSharpTree> AES_GENERATE_KEY =
+            new DetectionRuleBuilder<CSharpTree>()
+                    .createDetectionRule()
+                    .forObjectTypes(MethodMatcher.ANY)
+                    .forMethods("GenerateKey")
+                    .shouldBeDetectedAs(new ValueActionFactory<>("GenerateKey"))
+                    .withoutParameters()
+                    .buildForContext(new CipherContext())
+                    .inBundle(() -> "DotNet")
+                    .withoutDependingDetectionRules();
+
+    // aes.GenerateIV() — generates a new random initialization vector
+    private static final IDetectionRule<CSharpTree> AES_GENERATE_IV =
+            new DetectionRuleBuilder<CSharpTree>()
+                    .createDetectionRule()
+                    .forObjectTypes(MethodMatcher.ANY)
+                    .forMethods("GenerateIV")
+                    .shouldBeDetectedAs(new ValueActionFactory<>("GenerateIV"))
+                    .withoutParameters()
+                    .buildForContext(new CipherContext())
+                    .inBundle(() -> "DotNet")
+                    .withoutDependingDetectionRules();
+
+    // =========================================================================
     // Aggregated depending-rule lists
     // =========================================================================
 
     /**
      * All cipher operation rules that fire on a tracked Aes-family variable. Includes
-     * CreateEncryptor/CreateDecryptor, direct mode-specific Encrypt/Decrypt methods, and Try*
-     * variants.
+     * CreateEncryptor/CreateDecryptor, direct mode-specific Encrypt/Decrypt methods, Try* variants,
+     * and key/IV generation.
      */
     private static final List<IDetectionRule<CSharpTree>> CIPHER_OP_RULES =
             List.of(
@@ -518,7 +546,9 @@ public final class DotNetAES {
                     AES_TRY_ENCRYPT_ECB,
                     AES_TRY_DECRYPT_ECB,
                     AES_TRY_ENCRYPT_CFB,
-                    AES_TRY_DECRYPT_CFB);
+                    AES_TRY_DECRYPT_CFB,
+                    AES_GENERATE_KEY,
+                    AES_GENERATE_IV);
 
     /** Full set of depending rules for all Aes-derived classes. */
     private static final List<IDetectionRule<CSharpTree>> AES_DEPENDING_RULES =

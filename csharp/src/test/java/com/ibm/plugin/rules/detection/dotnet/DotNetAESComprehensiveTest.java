@@ -38,6 +38,8 @@ import com.ibm.mapper.model.INode;
 import com.ibm.mapper.model.KeyLength;
 import com.ibm.mapper.model.functionality.Decrypt;
 import com.ibm.mapper.model.functionality.Encrypt;
+import com.ibm.mapper.model.functionality.Generate;
+import com.ibm.mapper.model.functionality.KeyGeneration;
 import com.ibm.plugin.CSharpVerifier;
 import com.ibm.plugin.TestBase;
 import java.util.List;
@@ -110,8 +112,8 @@ import org.junit.jupiter.api.Test;
  *   38 TestTryDecryptCfb            → AES-CFB-None
  *
  * Section 7 – key/IV generation (findings 39–40):
- *   39 TestGenerateKey              → AES
- *   40 TestGenerateIV               → AES
+ *   39 TestGenerateKey              → AES + KeyGeneration
+ *   40 TestGenerateIV               → AES + Generate
  *
  * Section 8 – AesGcm AEAD ops (findings 41–42):
  *   41 TestAesGcmEncrypt            → AES + Encrypt
@@ -253,12 +255,33 @@ class DotNetAESComprehensiveTest extends TestBase {
                     assertModePaddingFindings(detectionStore, nodes, "CFB", "None", "AES-CFB-None");
 
             // -----------------------------------------------------------------
-            // Section 7: GenerateKey / GenerateIV — no detection for these ops
+            // Section 7: GenerateKey / GenerateIV
             // -----------------------------------------------------------------
-            case 39, 40 -> {
+            case 39 -> {
+                // aes.GenerateKey() → KeyGeneration functionality node
+                DetectionStore<CSharpCheck, CSharpTree, CSharpSymbol, CSharpScanContext>
+                        genKeyStore =
+                                getStoreOfValueType(
+                                        ValueAction.class, detectionStore.getChildren());
+                assertThat(genKeyStore).isNotNull();
+                assertThat(genKeyStore.getDetectionValues().get(0).asString())
+                        .isEqualTo("GenerateKey");
                 assertThat(nodes).hasSize(1);
                 assertThat(nodes.get(0).getKind()).isEqualTo(BlockCipher.class);
-                assertThat(nodes.get(0).asString()).isEqualTo("AES");
+                assertThat(nodes.get(0).getChildren().get(KeyGeneration.class)).isNotNull();
+            }
+            case 40 -> {
+                // aes.GenerateIV() → Generate functionality node
+                DetectionStore<CSharpCheck, CSharpTree, CSharpSymbol, CSharpScanContext>
+                        genIvStore =
+                                getStoreOfValueType(
+                                        ValueAction.class, detectionStore.getChildren());
+                assertThat(genIvStore).isNotNull();
+                assertThat(genIvStore.getDetectionValues().get(0).asString())
+                        .isEqualTo("GenerateIV");
+                assertThat(nodes).hasSize(1);
+                assertThat(nodes.get(0).getKind()).isEqualTo(BlockCipher.class);
+                assertThat(nodes.get(0).getChildren().get(Generate.class)).isNotNull();
             }
 
             // -----------------------------------------------------------------
