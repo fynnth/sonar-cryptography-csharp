@@ -19,9 +19,6 @@
  */
 package com.ibm.engine.detection;
 
-import com.ibm.engine.callstack.ArgSnapshot;
-import com.ibm.engine.callstack.CallContext;
-import com.ibm.engine.callstack.DetachedCall;
 import com.ibm.engine.executive.IStatusReporting;
 import com.ibm.engine.hooks.*;
 import com.ibm.engine.language.IScanContext;
@@ -34,7 +31,7 @@ import javax.annotation.Nullable;
 
 public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, T, S, P> {
     @Nonnull private final DetectionStoreWithHook<R, T, S, P> hookRootDetectionStore;
-    @Nonnull private final CallContext<R, T> callContext;
+    @Nonnull private final T invocationTree;
 
     public DetectionStoreWithHook(
             final int level,
@@ -42,16 +39,16 @@ public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, 
             @Nonnull final IScanContext<R, T> scanContext,
             @Nonnull final Handler<R, T, S, P> handler,
             @Nonnull final IStatusReporting<R, T, S, P> statusReporting,
-            @Nonnull final CallContext<R, T> callContext) {
+            @Nonnull final T invocationTree) {
         super(level, detectionRule, scanContext, handler, statusReporting);
-        this.callContext = callContext;
+        this.invocationTree = invocationTree;
         this.hookRootDetectionStore = this;
     }
 
     public DetectionStoreWithHook(
             final int level,
             @Nonnull final IDetectionRule<T> detectionRule,
-            @Nonnull final CallContext<R, T> callContext,
+            @Nonnull final T invocationTree,
             @Nonnull final DetectionStoreWithHook<R, T, S, P> hookRootDetectionStore) {
         super(
                 level,
@@ -59,16 +56,17 @@ public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, 
                 hookRootDetectionStore.scanContext,
                 hookRootDetectionStore.handler,
                 hookRootDetectionStore.statusReporting);
-        this.callContext = callContext;
+        this.invocationTree = invocationTree;
         this.hookRootDetectionStore = hookRootDetectionStore;
     }
 
-    public void onHookInvocation(@Nonnull final IHook<R, T, S, P> hook) {
-        onHookInvocation(hook, false);
+    public void onHookInvocation(
+            @Nonnull final T invocationTree, @Nonnull final IHook<R, T, S, P> hook) {
+        onHookInvocation(invocationTree, hook, false);
     }
 
     public void onSuccessiveHook(@Nonnull final IHook<R, T, S, P> hook) {
-        if (!hook.isInvocationOn(callContext, handler.getLanguageSupport())) {
+        if (!hook.isInvocationOn(invocationTree, handler.getLanguageSupport())) {
             // Add a hook to the hook repository
             if (handler.addHookToHookRepository(hook)) {
                 /*
@@ -78,17 +76,20 @@ public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, 
                 handler.subscribeToHookDetectionObservable(hook, hookRootDetectionStore);
             }
         } else {
-            onHookInvocation(hook, true);
+            onHookInvocation(invocationTree, hook, true);
         }
     }
 
-    private void onHookInvocation(@Nonnull final IHook<R, T, S, P> hook, boolean isSuccessive) {
+    private void onHookInvocation(
+            @Nonnull final T invocationTree,
+            @Nonnull final IHook<R, T, S, P> hook,
+            boolean isSuccessive) {
         if (hook
                 instanceof
                 MethodInvocationHookWithParameterResolvement<R, T, S, P>
                         methodInvocationHookWithParameterResolvement) {
             handleMethodInvocationHookWithParameterResolvement(
-                    methodInvocationHookWithParameterResolvement, isSuccessive);
+                    invocationTree, methodInvocationHookWithParameterResolvement, isSuccessive);
         } else if (hook
                 instanceof
                 MethodInvocationHookWithReturnResolvement<R, T, S, P>
@@ -96,7 +97,7 @@ public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, 
             handleMethodInvocationHookWithReturnResolvement(
                     methodInvocationHookWithReturnResolvement, isSuccessive);
         } else if (hook instanceof EnumHook<R, T, S, P> enumHook) {
-            handleEnumHook(callContext.tree(), enumHook);
+            handleEnumHook(invocationTree, enumHook);
         }
     }
 
@@ -121,19 +122,11 @@ public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, 
     }
 
     private void handleMethodInvocationHookWithParameterResolvement(
+            @Nonnull final T methodInvocation,
             @Nonnull
                     final MethodInvocationHookWithParameterResolvement<R, T, S, P>
                             methodInvocationHookWithParameterResolvement,
             boolean isSuccessive) {
-        if (callContext instanceof DetachedCall<R, T> detachedCall) {
-            replayDetachedParameterHook(
-                    detachedCall, methodInvocationHookWithParameterResolvement, isSuccessive);
-            return;
-        }
-        final T methodInvocation = callContext.tree();
-        if (methodInvocation == null) {
-            return;
-        }
         final IDetectionEngine<T, S> detectionEngine =
                 handler.getLanguageSupport().createDetectionEngineInstance(hookRootDetectionStore);
         final T argument =
@@ -209,37 +202,6 @@ public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, 
                 isSuccessive);
     }
 
-    /**
-     * Fire-time replay for a {@link DetachedCall}: the argument was already resolved at record
-     * time, so we skip {@code extractArgumentFromMethodCaller}/{@code resolveValuesInInnerScope}
-     * and feed the pre-resolved snapshot (with its {@code DetachedSyntaxToken} location) straight
-     * to the hook's value factory. (Java parameter hooks never set {@code expressionToResolve}, so
-     * the cross-boundary path is not needed here.)
-     */
-    private void replayDetachedParameterHook(
-            @Nonnull final DetachedCall<R, T> detachedCall,
-            @Nonnull final MethodInvocationHookWithParameterResolvement<R, T, S, P> hook,
-            boolean isSuccessive) {
-        final int index =
-                handler.getLanguageSupport()
-                        .parameterIndexOf(hook.methodDefinition(), hook.methodParameter());
-        if (index >= 0
-                && index < detachedCall.arguments().size()
-                && hook.getParameter() instanceof DetectableParameter<T> detectableParameter) {
-            for (ArgSnapshot.ResolvedSnapshotValue snapshot :
-                    detachedCall.arguments().get(index).values()) {
-                @SuppressWarnings("unchecked")
-                final T location = (T) snapshot.location();
-                final ResolvedValue<Object, T> resolvedValue =
-                        new ResolvedValue<>(snapshot.value(), location);
-                new ValueDetection<>(resolvedValue, detectableParameter, location, null)
-                        .toValue(detectableParameter.getiValueFactory())
-                        .ifPresent(iValue -> addValue(detectableParameter.getIndex(), iValue));
-            }
-        }
-        handleNextRulesForMethodHooks(hook, null, isSuccessive);
-    }
-
     private void handleNextRulesForMethodHooks(
             @Nonnull final IMethodInvocationHook<R, T, S, P> hook,
             @Nullable final TraceSymbol<S> traceSymbolForParameter,
@@ -253,7 +215,7 @@ public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, 
                                 new DetectionStoreWithHook<>(
                                         level + 1,
                                         iDetectionRule,
-                                        callContext,
+                                        invocationTree,
                                         hookRootDetectionStore))
                 .forEach(
                         newDetectionStore -> {
@@ -277,7 +239,7 @@ public final class DetectionStoreWithHook<R, T, S, P> extends DetectionStore<R, 
                                 new DetectionStoreWithHook<>(
                                         level + 1,
                                         iDetectionRule,
-                                        callContext,
+                                        invocationTree,
                                         hookRootDetectionStore))
                 .forEach(
                         newDetectionStore -> {

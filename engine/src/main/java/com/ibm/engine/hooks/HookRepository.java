@@ -115,6 +115,9 @@ public class HookRepository<R, T, S, P>
     public void update(@Nonnull final CallContext<R, T> callContext) {
         hookSet.stream()
                 .filter(hook -> hook.isInvocationOn(callContext, handler.getLanguageSupport()))
-                .forEach(hook -> handler.notifyAllHookDetectionObservers(callContext, hook));
+                .forEach(
+                        hook ->
+                                handler.notifyAllHookDetectionObservers(
+                                        callContext.tree(), hook, callContext.publisher()));
     }
 }

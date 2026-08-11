@@ -43,9 +43,7 @@ public record EnumHook<R, T, S, P>(
     public boolean isInvocationOn(
             @Nonnull CallContext<R, T> callContext,
             @Nonnull ILanguageSupport<R, T, S, P> languageSupport) {
-        // Enum accesses are never detached, so a detached record can never be an enum invocation.
-        final T tree = callContext.tree();
-        return tree != null && isInvocationOn(tree, languageSupport);
+        return isInvocationOn(callContext.tree(), languageSupport);
     }
 
     @Override
