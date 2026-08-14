@@ -71,28 +71,28 @@ class DotNetSHATest extends TestBase {
         switch (findingId) {
             case 0 -> {
                 assertThat(value0.asString()).isEqualTo("SHA1");
-                assertThat(node.asString()).isEqualTo("SHA-1");
+                assertThat(node.asString()).isEqualTo("SHA1");
                 INode digestSize = node.getChildren().get(DigestSize.class);
                 assertThat(digestSize).isNotNull();
                 assertThat(digestSize.asString()).isEqualTo("160");
             }
             case 1 -> {
                 assertThat(value0.asString()).isEqualTo("SHA256");
-                assertThat(node.asString()).isEqualTo("SHA-256");
+                assertThat(node.asString()).isEqualTo("SHA256");
                 INode digestSize = node.getChildren().get(DigestSize.class);
                 assertThat(digestSize).isNotNull();
                 assertThat(digestSize.asString()).isEqualTo("256");
             }
             case 2 -> {
                 assertThat(value0.asString()).isEqualTo("SHA384");
-                assertThat(node.asString()).isEqualTo("SHA-384");
+                assertThat(node.asString()).isEqualTo("SHA384");
                 INode digestSize = node.getChildren().get(DigestSize.class);
                 assertThat(digestSize).isNotNull();
                 assertThat(digestSize.asString()).isEqualTo("384");
             }
             case 3 -> {
                 assertThat(value0.asString()).isEqualTo("SHA512");
-                assertThat(node.asString()).isEqualTo("SHA-512");
+                assertThat(node.asString()).isEqualTo("SHA512");
                 INode digestSize = node.getChildren().get(DigestSize.class);
                 assertThat(digestSize).isNotNull();
                 assertThat(digestSize.asString()).isEqualTo("512");

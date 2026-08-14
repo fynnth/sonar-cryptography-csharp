@@ -72,40 +72,40 @@ class DotNetHMACTest extends TestBase {
         switch (findingId) {
             case 0 -> {
                 assertThat(value0.asString()).isEqualTo("HMACSHA1");
-                assertThat(node.asString()).isEqualTo("HMAC-SHA-1");
+                assertThat(node.asString()).isEqualTo("HMAC-SHA1");
                 INode digest = node.getChildren().get(MessageDigest.class);
                 assertThat(digest).isNotNull();
-                assertThat(digest.asString()).isEqualTo("SHA-1");
+                assertThat(digest.asString()).isEqualTo("SHA1");
                 INode digestSize = digest.getChildren().get(DigestSize.class);
                 assertThat(digestSize).isNotNull();
                 assertThat(digestSize.asString()).isEqualTo("160");
             }
             case 1 -> {
                 assertThat(value0.asString()).isEqualTo("HMACSHA256");
-                assertThat(node.asString()).isEqualTo("HMAC-SHA-256");
+                assertThat(node.asString()).isEqualTo("HMAC-SHA256");
                 INode digest = node.getChildren().get(MessageDigest.class);
                 assertThat(digest).isNotNull();
-                assertThat(digest.asString()).isEqualTo("SHA-256");
+                assertThat(digest.asString()).isEqualTo("SHA256");
                 INode digestSize = digest.getChildren().get(DigestSize.class);
                 assertThat(digestSize).isNotNull();
                 assertThat(digestSize.asString()).isEqualTo("256");
             }
             case 2 -> {
                 assertThat(value0.asString()).isEqualTo("HMACSHA384");
-                assertThat(node.asString()).isEqualTo("HMAC-SHA-384");
+                assertThat(node.asString()).isEqualTo("HMAC-SHA384");
                 INode digest = node.getChildren().get(MessageDigest.class);
                 assertThat(digest).isNotNull();
-                assertThat(digest.asString()).isEqualTo("SHA-384");
+                assertThat(digest.asString()).isEqualTo("SHA384");
                 INode digestSize = digest.getChildren().get(DigestSize.class);
                 assertThat(digestSize).isNotNull();
                 assertThat(digestSize.asString()).isEqualTo("384");
             }
             case 3 -> {
                 assertThat(value0.asString()).isEqualTo("HMACSHA512");
-                assertThat(node.asString()).isEqualTo("HMAC-SHA-512");
+                assertThat(node.asString()).isEqualTo("HMAC-SHA512");
                 INode digest = node.getChildren().get(MessageDigest.class);
                 assertThat(digest).isNotNull();
-                assertThat(digest.asString()).isEqualTo("SHA-512");
+                assertThat(digest.asString()).isEqualTo("SHA512");
                 INode digestSize = digest.getChildren().get(DigestSize.class);
                 assertThat(digestSize).isNotNull();
                 assertThat(digestSize.asString()).isEqualTo("512");

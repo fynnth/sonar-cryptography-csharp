@@ -20,7 +20,6 @@
 package com.ibm.engine.hooks;
 
 import com.ibm.engine.callstack.CallContext;
-import com.ibm.engine.callstack.DetachedCall;
 import com.ibm.engine.detection.MatchContext;
 import com.ibm.engine.detection.MethodMatcher;
 import com.ibm.engine.language.ILanguageSupport;
@@ -48,17 +47,7 @@ public record MethodInvocationHookWithReturnResolvement<R, T, S, P>(
     public boolean isInvocationOn(
             @Nonnull CallContext<R, T> callContext,
             @Nonnull ILanguageSupport<R, T, S, P> languageSupport) {
-        if (callContext instanceof DetachedCall<R, T> detached) {
-            final MethodMatcher<T> methodMatcher =
-                    languageSupport.createMethodMatcherBasedOn(methodDefinition);
-            return methodMatcher != null
-                    && methodMatcher.matchKeys(
-                            detached.invokedObjectType(),
-                            detached.methodName(),
-                            detached.parameterTypes());
-        }
-        final T tree = callContext.tree();
-        return tree != null && isInvocationOn(tree, languageSupport);
+        return isInvocationOn(callContext.tree(), languageSupport);
     }
 
     @Override
