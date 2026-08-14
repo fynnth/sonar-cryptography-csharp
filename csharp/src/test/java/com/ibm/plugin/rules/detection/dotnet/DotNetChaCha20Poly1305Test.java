@@ -40,7 +40,7 @@ class DotNetChaCha20Poly1305Test extends TestBase {
 
     @Test
     void test() throws Exception {
-        CSharpVerifier.verify("rules/detection/dotnet/DotNetChaCha20Poly1305.cs", this);
+        CSharpVerifier.verify("rules/detection/dotnet/DotNetChaCha20Poly1305TestFile.cs", this);
     }
 
     @Override
