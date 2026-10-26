@@ -74,6 +74,8 @@ class CSharpChainedSetterTest extends TestBase {
                 assertThat(node.getKind()).isEqualTo(MessageDigest.class);
                 assertThat(node.asString()).isEqualTo("SHA-256");
             }
+            // signedXml.SignedInfo!.SignatureMethod: the `!` must not break the chain
+            case 3 -> assertThat(node.asString()).isEqualTo("RSA-PKCS1-1.5-SHA-1");
             default -> throw new IllegalStateException("Unexpected findingId: " + findingId);
         }
     }

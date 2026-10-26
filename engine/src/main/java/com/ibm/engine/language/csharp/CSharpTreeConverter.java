@@ -45,6 +45,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 /**
  * Converts an ANTLR4 C# parse tree to the language-agnostic {@link CSharpTree} hierarchy.
@@ -1059,9 +1060,16 @@ public final class CSharpTreeConverter {
                 return null;
             }
             if (memberAccesses > 1) {
-                // A chain may only contain member accesses (no index, no null-conditional).
+                // A chain may only contain member accesses and null-forgiving operators (no
+                // index, no null-conditional). `!` asserts to the compiler that the preceding
+                // expression is not null and leaves the receiver itself untouched, so skipping it
+                // changes nothing about what the chain designates. It has to be allowed because
+                // nullable reference types make it ordinary: `signedXml.SignedInfo!.SignatureMethod
+                // = SignedXml.XmlDsigRSASHA1Url` is the only XML signature method assignment in
+                // Sustainsys.Saml2, and rejecting the chain lost it entirely.
                 for (int i = 1; i < children.size(); i++) {
-                    if (!(children.get(i) instanceof CSharpParser.Member_accessContext)) {
+                    if (!(children.get(i) instanceof CSharpParser.Member_accessContext)
+                            && !isNullForgiving(children.get(i))) {
                         return null;
                     }
                 }
@@ -1135,6 +1143,11 @@ public final class CSharpTreeConverter {
                 || parent instanceof CSharpParser.Specific_catch_clauseContext
                 || parent instanceof CSharpParser.General_catch_clauseContext
                 || parent instanceof CSharpParser.Finally_clauseContext;
+    }
+
+    /** Whether a child of a member-access chain is the null-forgiving operator {@code !}. */
+    private static boolean isNullForgiving(@Nullable ParseTree child) {
+        return child instanceof TerminalNode terminal && "!".equals(terminal.getText());
     }
 
     /** Only invocation/creation/synthetic-setter trees are worth scanning as a "statement". */

@@ -29,6 +29,7 @@ import com.ibm.engine.language.csharp.tree.CSharpTree;
 import com.ibm.mapper.model.INode;
 import com.ibm.mapper.model.MessageDigest;
 import com.ibm.mapper.model.Padding;
+import com.ibm.mapper.model.functionality.Sign;
 import com.ibm.plugin.CSharpVerifier;
 import com.ibm.plugin.TestBase;
 import java.util.List;
@@ -63,37 +64,51 @@ class DotNetCertificateRequestTest extends TestBase {
 
         switch (findingId) {
             // new CertificateRequest("CN=test", rsa, SHA256, Pkcs1)
-            case 0 -> assertSigning(node, "PKCS1", "SHA-256");
+            case 0 -> assertSigning(node, "RSA-PKCS1-1.5-SHA-256", "PKCS1", "SHA-256");
             // X500DistinguishedName subject, SHA384 and PSS
-            case 1 -> assertSigning(node, "PSS", "SHA-384");
-            // the ECDsa overload has no padding, and none may be invented
-            case 2 -> assertSigning(node, null, "SHA-256");
-            // the PublicKey overload
-            case 3 -> assertSigning(node, null, "SHA-512");
+            case 1 -> assertSigning(node, "RSA-PSS", "PSS", "SHA-384");
+            // the ECDsa overload has no padding, so the algorithm is not knowable and none is
+            // invented: the digest becomes the root and records that it is used to sign.
+            case 2 -> assertSigning(node, "SHA-256", null, null);
+            // the PublicKey overload, likewise without a padding
+            case 3 -> assertSigning(node, "SHA-512", null, null);
             // a weak hash is reported as written, not corrected
-            case 4 -> assertSigning(node, "PKCS1", "SHA-1");
+            case 4 -> assertSigning(node, "RSA-PKCS1-1.5-SHA-1", "PKCS1", "SHA-1");
             // keyword arguments written padding, hashAlgorithm, key — not the declared order
-            case 5 -> assertSigning(node, "PSS", "SHA-256");
-            // the hash is a method parameter: absent, the padding still reported
-            case 6 -> assertSigning(node, "PKCS1", null);
+            case 5 -> assertSigning(node, "RSA-PSS", "PSS", "SHA-256");
+            // the hash is a method parameter: absent, the padding still names the algorithm
+            case 6 -> assertSigning(node, "RSA-PKCS1-1.5", "PKCS1", null);
             // RSA.Create(3072) written inside the call is its own finding, reported first
             case 7 -> assertThat(node.asString()).isEqualTo("RSA-3072");
             // ... followed by the request that it feeds
-            case 8 -> assertSigning(node, "PKCS1", "SHA-256");
-            // X509SignatureGenerator.CreateForRSA(rsa, Pss): padding only, the hash comes later
-            case 9 -> assertSigning(node, "PSS", null);
+            case 8 -> assertSigning(node, "RSA-PKCS1-1.5-SHA-256", "PKCS1", "SHA-256");
+            // X509SignatureGenerator.CreateForRSA(rsa, Pss): padding only, which still identifies
+            // RSA — before this was rooted at a Sign and reached the CBOM as nothing at all.
+            case 9 -> assertSigning(node, "RSA-PSS", "PSS", null);
             // X509SignatureGenerator.CreateForECDsa(ecdsa)
             case 10 -> assertThat(node.asString()).isEqualTo("ECDSA");
             default -> throw new IllegalStateException("Unexpected findingId: " + findingId);
         }
     }
 
-    /** Asserts a Sign operation and its two children, where {@code null} means absent. */
+    /**
+     * Asserts the algorithm a signing call resolves to, plus its padding and digest children, where
+     * {@code null} means absent.
+     *
+     * <p>The node is rooted at the algorithm rather than at the {@code Sign}, because a
+     * functionality is not something either output can carry: see {@code
+     * SignatureReorganizer.ROOT_SIGN_ONTO_ITS_ALGORITHM}. Where no padding names the algorithm, the
+     * digest becomes the root instead and the expected children are therefore absent.
+     */
     private static void assertSigning(
             @Nonnull INode node,
+            @Nonnull String expectedAlgorithm,
             @Nullable String expectedPadding,
             @Nullable String expectedDigest) {
-        assertThat(node.asString()).isEqualTo("SIGN");
+        assertThat(node.asString()).isEqualTo(expectedAlgorithm);
+        assertThat(node.hasChildOfType(Sign.class))
+                .as("the signing operation is recorded on %s", expectedAlgorithm)
+                .isPresent();
         assertChild(node, Padding.class, expectedPadding);
         assertChild(node, MessageDigest.class, expectedDigest);
     }

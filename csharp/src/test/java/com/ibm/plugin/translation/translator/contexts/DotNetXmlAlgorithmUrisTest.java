@@ -25,6 +25,7 @@ import com.ibm.mapper.model.INode;
 import com.ibm.mapper.model.Mac;
 import com.ibm.mapper.model.MessageDigest;
 import com.ibm.mapper.model.Padding;
+import com.ibm.mapper.model.functionality.Sign;
 import com.ibm.mapper.utils.DetectionLocation;
 import java.util.List;
 import java.util.Optional;
@@ -58,19 +59,35 @@ class DotNetXmlAlgorithmUrisTest {
 
     @Test
     void rsaSignaturesAreSignWithDigestAndPkcs1() {
-        assertSignature("SHA-1", "PKCS1", DSIG + "rsa-sha1", "XmlDsigRSASHA1Url");
-        assertSignature("SHA-256", "PKCS1", DSIG_MORE + "rsa-sha256", "XmlDsigRSASHA256Url");
-        assertSignature("SHA-384", "PKCS1", DSIG_MORE + "rsa-sha384", "XmlDsigRSASHA384Url");
-        assertSignature("SHA-512", "PKCS1", DSIG_MORE + "rsa-sha512", "XmlDsigRSASHA512Url");
+        assertSignature(
+                "RSA-PKCS1-1.5-SHA-1", "SHA-1", "PKCS1", DSIG + "rsa-sha1", "XmlDsigRSASHA1Url");
+        assertSignature(
+                "RSA-PKCS1-1.5-SHA-256",
+                "SHA-256",
+                "PKCS1",
+                DSIG_MORE + "rsa-sha256",
+                "XmlDsigRSASHA256Url");
+        assertSignature(
+                "RSA-PKCS1-1.5-SHA-384",
+                "SHA-384",
+                "PKCS1",
+                DSIG_MORE + "rsa-sha384",
+                "XmlDsigRSASHA384Url");
+        assertSignature(
+                "RSA-PKCS1-1.5-SHA-512",
+                "SHA-512",
+                "PKCS1",
+                DSIG_MORE + "rsa-sha512",
+                "XmlDsigRSASHA512Url");
     }
 
     @Test
     void dsaAndEcdsaSignaturesHaveNoPadding() {
-        assertSignature("SHA-1", null, DSIG + "dsa-sha1", "XmlDsigDSAUrl");
-        assertSignature("SHA-1", null, DSIG_MORE + "ecdsa-sha1");
-        assertSignature("SHA-256", null, DSIG_MORE + "ecdsa-sha256");
-        assertSignature("SHA-384", null, DSIG_MORE + "ecdsa-sha384");
-        assertSignature("SHA-512", null, DSIG_MORE + "ecdsa-sha512");
+        assertSignature("DSA-SHA-1", "SHA-1", null, DSIG + "dsa-sha1", "XmlDsigDSAUrl");
+        assertSignature("ECDSA-SHA-1", "SHA-1", null, DSIG_MORE + "ecdsa-sha1");
+        assertSignature("ECDSA-SHA-256", "SHA-256", null, DSIG_MORE + "ecdsa-sha256");
+        assertSignature("ECDSA-SHA-384", "SHA-384", null, DSIG_MORE + "ecdsa-sha384");
+        assertSignature("ECDSA-SHA-512", "SHA-512", null, DSIG_MORE + "ecdsa-sha512");
     }
 
     @Test
@@ -144,12 +161,14 @@ class DotNetXmlAlgorithmUrisTest {
     }
 
     private static void assertSignature(
+            @Nonnull String expectedAlgorithm,
             @Nonnull String expectedDigest,
             @Nullable String expectedPadding,
             @Nonnull String... ids) {
         for (String id : ids) {
             final INode node = present(DotNetXmlAlgorithmUris.signature(id, LOCATION), id);
-            assertThat(node.asString()).as(id).isEqualTo("SIGN");
+            assertThat(node.asString()).as(id).isEqualTo(expectedAlgorithm);
+            assertThat(node.hasChildOfType(Sign.class)).as(id).isPresent();
             assertThat(node.getChildren().get(MessageDigest.class).asString())
                     .as(id)
                     .isEqualTo(expectedDigest);

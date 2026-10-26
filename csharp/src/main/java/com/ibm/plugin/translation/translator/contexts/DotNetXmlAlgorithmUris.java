@@ -21,9 +21,12 @@ package com.ibm.plugin.translation.translator.contexts;
 
 import com.ibm.mapper.model.INode;
 import com.ibm.mapper.model.MessageDigest;
+import com.ibm.mapper.model.Signature;
 import com.ibm.mapper.model.algorithms.AES;
 import com.ibm.mapper.model.algorithms.DES;
 import com.ibm.mapper.model.algorithms.DESede;
+import com.ibm.mapper.model.algorithms.DSA;
+import com.ibm.mapper.model.algorithms.ECDSA;
 import com.ibm.mapper.model.algorithms.HMAC;
 import com.ibm.mapper.model.algorithms.MD5;
 import com.ibm.mapper.model.algorithms.RIPEMD;
@@ -89,11 +92,11 @@ public final class DotNetXmlAlgorithmUris {
                     rsa(new SHA2(384, location), location);
             case DSIG_MORE + "rsa-sha512", "XmlDsigRSASHA512Url" ->
                     rsa(new SHA2(512, location), location);
-            case DSIG + "dsa-sha1", "XmlDsigDSAUrl" -> signing(new SHA(location), location);
-            case DSIG_MORE + "ecdsa-sha1" -> signing(new SHA(location), location);
-            case DSIG_MORE + "ecdsa-sha256" -> signing(new SHA2(256, location), location);
-            case DSIG_MORE + "ecdsa-sha384" -> signing(new SHA2(384, location), location);
-            case DSIG_MORE + "ecdsa-sha512" -> signing(new SHA2(512, location), location);
+            case DSIG + "dsa-sha1", "XmlDsigDSAUrl" -> dsa(new SHA(location), location);
+            case DSIG_MORE + "ecdsa-sha1" -> ecdsa(new SHA(location), location);
+            case DSIG_MORE + "ecdsa-sha256" -> ecdsa(new SHA2(256, location), location);
+            case DSIG_MORE + "ecdsa-sha384" -> ecdsa(new SHA2(384, location), location);
+            case DSIG_MORE + "ecdsa-sha512" -> ecdsa(new SHA2(512, location), location);
             case DSIG + "hmac-sha1", "XmlDsigHMACSHA1Url" ->
                     Optional.of(new HMAC(new SHA(location)));
             case DSIG_MORE + "hmac-sha256" -> Optional.of(new HMAC(new SHA2(256, location)));
@@ -138,19 +141,43 @@ public final class DotNetXmlAlgorithmUris {
     }
 
     @Nonnull
+    /**
+     * The signature algorithms named by a {@code SignatureMethod} URI.
+     *
+     * <p>Such a URI names the algorithm as plainly as it names the digest -- {@code
+     * xmldsig-more#rsa-sha256} is RSA with SHA-256 and PKCS#1 v1.5 -- so the node is rooted at the
+     * algorithm, with the digest, the padding and the {@code Sign} as its children.
+     *
+     * <p>Rooting it at the {@code Sign} instead loses all of that. Neither {@code
+     * CBOMOutputFile.add} nor {@code InventoryRule.report} does anything with a functionality: the
+     * first replaces such a root by its children, so the padding (a {@code Property}) disappears
+     * and only the digest becomes a component, reported as a digest rather than a signature; the
+     * second raises no issue at all, because it reports only roots that are an algorithm, a
+     * protocol or a key.
+     */
     private static Optional<INode> rsa(
             @Nonnull MessageDigest digest, @Nonnull DetectionLocation location) {
-        final Sign sign = new Sign(location);
-        sign.put(digest);
-        sign.put(new PKCS1(location));
-        return Optional.of(sign);
+        final RSA rsa = new RSA(Signature.class, location);
+        rsa.put(digest);
+        rsa.put(new PKCS1(location));
+        rsa.put(new Sign(location));
+        return Optional.of(rsa);
     }
 
-    @Nonnull
-    private static Optional<INode> signing(
+    /** As {@link #rsa}, for the {@code dsa-*} URIs. */
+    private static Optional<INode> dsa(
             @Nonnull MessageDigest digest, @Nonnull DetectionLocation location) {
-        final Sign sign = new Sign(location);
-        sign.put(digest);
-        return Optional.of(sign);
+        final DSA dsa = new DSA(digest);
+        dsa.put(new Sign(location));
+        return Optional.of(dsa);
+    }
+
+    /** As {@link #rsa}, for the {@code ecdsa-*} URIs. The curve is not named by the URI. */
+    private static Optional<INode> ecdsa(
+            @Nonnull MessageDigest digest, @Nonnull DetectionLocation location) {
+        final ECDSA ecdsa = new ECDSA(location);
+        ecdsa.put(digest);
+        ecdsa.put(new Sign(location));
+        return Optional.of(ecdsa);
     }
 }

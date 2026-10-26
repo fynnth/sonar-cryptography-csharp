@@ -33,6 +33,7 @@ import com.ibm.mapper.model.MessageDigest;
 import com.ibm.mapper.model.Mode;
 import com.ibm.mapper.model.Padding;
 import com.ibm.mapper.model.PublicKeyEncryption;
+import com.ibm.mapper.model.functionality.Sign;
 import com.ibm.plugin.CSharpVerifier;
 import com.ibm.plugin.TestBase;
 import java.util.List;
@@ -77,9 +78,9 @@ class DotNetXmlTest extends TestBase {
             case 2 -> assertDigest(node, "SHA-1");
             case 3 -> assertDigest(node, "SHA-384");
             // RSA signature: the digest and the PKCS#1 padding
-            case 4 -> assertSignature(node, "SHA-256", "PKCS1");
+            case 4 -> assertSignature(node, "RSA-PKCS1-1.5-SHA-256", "SHA-256", "PKCS1");
             // ECDSA signature: a digest, and no padding may be invented
-            case 5 -> assertSignature(node, "SHA-384", null);
+            case 5 -> assertSignature(node, "ECDSA-SHA-384", "SHA-384", null);
             // an HMAC identifier is a MAC, not a signature
             case 6 -> {
                 assertThat(node.getKind()).isEqualTo(Mac.class);
@@ -103,7 +104,7 @@ class DotNetXmlTest extends TestBase {
                 assertChild(node, Mode.class, "CBC");
             }
             // signedXml.SignedInfo.SignatureMethod = SignedXml.XmlDsigRSASHA256Url
-            case 11 -> assertSignature(node, "SHA-256", "PKCS1");
+            case 11 -> assertSignature(node, "RSA-PKCS1-1.5-SHA-256", "SHA-256", "PKCS1");
             default -> throw new IllegalStateException("Unexpected findingId: " + findingId);
         }
     }
@@ -113,9 +114,18 @@ class DotNetXmlTest extends TestBase {
         assertThat(node.asString()).isEqualTo(expected);
     }
 
+    /**
+     * A {@code SignatureMethod} URI names the algorithm as plainly as the digest, so the node is
+     * rooted at the algorithm with the digest, the padding and the {@code Sign} beneath it. Rooted
+     * at a {@code Sign} instead, as it was, the algorithm and the padding never reached the CBOM.
+     */
     private static void assertSignature(
-            @Nonnull INode node, @Nonnull String expectedDigest, @Nullable String expectedPadding) {
-        assertThat(node.asString()).isEqualTo("SIGN");
+            @Nonnull INode node,
+            @Nonnull String expectedAlgorithm,
+            @Nonnull String expectedDigest,
+            @Nullable String expectedPadding) {
+        assertThat(node.asString()).isEqualTo(expectedAlgorithm);
+        assertThat(node.hasChildOfType(Sign.class)).isPresent();
         assertChild(node, MessageDigest.class, expectedDigest);
         assertChild(node, Padding.class, expectedPadding);
     }
